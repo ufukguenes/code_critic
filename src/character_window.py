@@ -26,7 +26,7 @@ class CodeQualityChecker(QThread):
             warnings_count = self.count_occurrences(output, "warning:")
             errors_count = self.count_occurrences(output, "error:")
 
-            self.result_ready.emit((warnings_count, errors_count))
+            self.result_ready.emit(warnings_count, errors_count)
 
         except Exception as e:
             print("Error running cargo check:", e)
@@ -72,12 +72,12 @@ class Character(QWidget):
         self.worker.result_ready.connect(self.update_gif)
         self.worker.start()
 
-    def update_gif(self, warnings_count, error_count):
-        if error_count > 0:
+    def update_gif(self, warnings_count, errors_count):
+        if errors_count > 0:
             self.movie.stop()
             self.movie.setFileName(GIF_PANIC)
             self.movie.start()
-        elif warnings_count > 50:
+        elif warnings_count > 100:
             self.movie.stop()
             self.movie.setFileName(GIF_SAD)
             self.movie.start()
