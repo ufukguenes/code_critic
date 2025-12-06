@@ -16,7 +16,7 @@ class CharacterStates(Enum):
     HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
     EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.GIF"
     WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
-    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.GIF"
+    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.gif"
 
 
 class CodeQualityChecker(QThread):
