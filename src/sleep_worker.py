@@ -1,5 +1,4 @@
 from PyQt6.QtCore import QThread, pyqtSignal
-import os
 import time
 import subprocess
 
@@ -25,7 +24,7 @@ class ModifiedTimeDiffChecker(QThread):
 
             current_time = time.time()
             time_difference = current_time - last_modified_timestamp
-            five_minutes = 3  # 5 * 60
+            five_minutes = 10  # 5 * 60
             is_older_than_five_minutes = time_difference > five_minutes
             self.result_ready.emit(is_older_than_five_minutes)
 

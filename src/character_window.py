@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QMenu
 from PyQt6.QtGui import QMovie
-from PyQt6.QtCore import QObject, Qt, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
 import re
 from enum import Enum
@@ -66,7 +66,7 @@ class Character(QWidget):
 
         self.default_pacing_interval = 100  # milliseconds
         self.code_check_interval = 1000  # milliseconds
-        self.sleep_interval = 1000  # * 60 # milliseconds
+        self.sleep_check_interval = 1000  # milliseconds
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -104,7 +104,7 @@ class Character(QWidget):
 
         self.sleep_timer = QTimer(self)
         self.sleep_timer.timeout.connect(self.sleep_check)
-        self.sleep_timer.start(self.sleep_interval)
+        self.sleep_timer.start(self.sleep_check_interval)
 
     def move_to_start_pos(self):
         screen = app.primaryScreen()
