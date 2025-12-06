@@ -57,6 +57,8 @@ class Character(QWidget):
         self.label.setMovie(self.movie)
         self.movie.start()
 
+        self.default_speed = self.movie.speed()
+
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.movie.setScaledSize(self.size())
         self.label.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -64,7 +66,7 @@ class Character(QWidget):
         screen = app.primaryScreen()
         rect = screen.availableGeometry()  # type: ignore
         bottom_right_x = rect.right() - self.width()
-        bottom_right_y = rect.bottom() - self.height() - 30
+        bottom_right_y = rect.bottom() - self.height()
         self.move(bottom_right_x, bottom_right_y)
 
         self.drag_position = None
@@ -73,6 +75,8 @@ class Character(QWidget):
         self.timer.timeout.connect(self.run_code_check)
         self.timer.start(1000)
 
+        self.last_state = "none"
+
     def run_code_check(self):
         self.worker = CodeQualityChecker()
         self.worker.result_ready.connect(self.update_gif)
@@ -80,14 +84,30 @@ class Character(QWidget):
 
     def update_gif(self, warnings_count, errors_count):
         if errors_count > 0:
+            if self.last_state == "error":
+                return
+            self.last_state = "error"
+
+            self.movie.setSpeed(self.default_speed)
             self.movie.stop()
             self.movie.setFileName(GIF_PANIC)
             self.movie.start()
-        elif warnings_count > 100:
+        elif warnings_count > 10:
+            if self.last_state == "warning":
+                return
+            self.last_state = "warning"
+
+            new_speed = self.default_speed + warnings_count
+            self.movie.setSpeed(new_speed)
             self.movie.stop()
             self.movie.setFileName(GIF_SAD)
             self.movie.start()
         else:
+            if self.last_state == "none":
+                return
+            self.last_state = "none"
+
+            self.movie.setSpeed(self.default_speed)
             self.movie.stop()
             self.movie.setFileName(GIF_HAPPY)
             self.movie.start()
