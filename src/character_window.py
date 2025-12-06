@@ -36,8 +36,10 @@ class CodeQualityChecker(QThread):
                 cmd, cwd=self.project_path, capture_output=True, text=True
             )
             output = result.stderr + result.stdout
-            warnings_count = self.count_occurrences(output, "warning:")
-            errors_count = self.count_occurrences(output, "error:")
+
+            # r"^" for matching only at beginning of line
+            warnings_count = self.count_occurrences(output, r"^warning:")
+            errors_count = self.count_occurrences(output, r"^error:")
 
             self.result_ready.emit(warnings_count, errors_count)
 
@@ -46,7 +48,9 @@ class CodeQualityChecker(QThread):
             self.result_ready.emit(0)
 
     def count_occurrences(self, text, pattern):
-        occurrences = [match.start() for match in re.finditer(pattern, text)]
+        occurrences = [
+            match.start() for match in re.finditer(pattern, text, re.MULTILINE)
+        ]
         return len(occurrences)
 
 
