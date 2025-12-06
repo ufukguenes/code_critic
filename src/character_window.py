@@ -3,16 +3,18 @@ from PyQt6.QtWidgets import QApplication, QLabel, QWidget
 from PyQt6.QtGui import QMovie
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
+import re
 
 GIF_HAPPY = "/home/ufuk/Downloads/pika_happy.gif"
 GIF_SAD = "/home/ufuk/Downloads/pika_sad.gif"
+GIF_PANIC = "/home/ufuk/Downloads/pika_sad.gif"
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
 WINDOW_WIDTH = 300
 WINDOW_HEIGHT = 300
 
 
 class CodeQualityChecker(QThread):
-    result_ready = pyqtSignal(int)
+    result_ready = pyqtSignal((int, int))
 
     def run(self):
         try:
@@ -21,12 +23,18 @@ class CodeQualityChecker(QThread):
                 cmd, cwd=PROJECT_PATH, capture_output=True, text=True
             )
             output = result.stderr + result.stdout
-            lines = output.strip().split("\n")
-            line_count = max(len(lines) - 1, 0)
-            self.result_ready.emit(line_count)
+            warnings_count = self.count_occurrences(output, "warning:")
+            errors_count = self.count_occurrences(output, "error:")
+
+            self.result_ready.emit((warnings_count, errors_count))
+
         except Exception as e:
             print("Error running cargo check:", e)
             self.result_ready.emit(0)
+
+    def count_occurrences(self, text, pattern):
+        occurrences = [match.start() for match in re.finditer(pattern, text)]
+        return len(occurrences)
 
 
 class Character(QWidget):
@@ -64,8 +72,12 @@ class Character(QWidget):
         self.worker.result_ready.connect(self.update_gif)
         self.worker.start()
 
-    def update_gif(self, line_count):
-        if line_count > 200:
+    def update_gif(self, warnings_count, error_count):
+        if error_count > 0:
+            self.movie.stop()
+            self.movie.setFileName(GIF_PANIC)
+            self.movie.start()
+        elif warnings_count > 50:
             self.movie.stop()
             self.movie.setFileName(GIF_SAD)
             self.movie.start()
