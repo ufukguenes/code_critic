@@ -1,5 +1,5 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QLabel, QWidget
+from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QMenu
 from PyQt6.QtGui import QMovie
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
@@ -98,6 +98,15 @@ class Character(QWidget):
 
     def mouseReleaseEvent(self, event):
         self.drag_position = None
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+
+        quit_action = menu.addAction("Quit")
+        action = menu.exec(event.globalPos())
+
+        if action == quit_action:
+            QApplication.quit()
 
 
 if __name__ == "__main__":
