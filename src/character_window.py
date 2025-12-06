@@ -4,13 +4,18 @@ from PyQt6.QtGui import QMovie
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
 import re
+from enum import Enum
 
-GIF_HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
-GIF_SAD = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
-GIF_PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
 WINDOW_WIDTH = 100
 WINDOW_HEIGHT = 100
+
+
+class CharacterStates(Enum):
+    HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+    WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
+    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
 
 
 class CodeQualityChecker(QThread):
@@ -41,6 +46,8 @@ class Character(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.current_state = CharacterStates.HAPPY
+
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -53,7 +60,7 @@ class Character(QWidget):
         self.label = QLabel(self)
         self.label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        self.movie = QMovie(GIF_HAPPY)
+        self.movie = QMovie(self.current_state.value)
         self.label.setMovie(self.movie)
         self.movie.start()
 
@@ -63,23 +70,30 @@ class Character(QWidget):
         self.movie.setScaledSize(self.size())
         self.label.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
 
+        self.move_to_start_pos()
+
+        self.drag_position = None
+
+        self.code_check_timer = QTimer(self)
+        self.code_check_timer.timeout.connect(self.run_code_check)
+        self.code_check_timer.start(1000)
+
+        self.pacing_timer = QTimer(self)
+        self.pacing_timer.timeout.connect(self.character_pacing)
+        self.default_pacing_time = 100
+        self.pacing_timer.start(self.default_pacing_time)
+
+        self.max_move_steps = 20
+        self.current_move_step = 0
+        self.move_offset = 5
+        self.increase_offset = False
+
+    def move_to_start_pos(self):
         screen = app.primaryScreen()
         rect = screen.availableGeometry()  # type: ignore
         bottom_right_x = rect.right() - self.width()
         bottom_right_y = rect.bottom() - self.height()
         self.move(bottom_right_x, bottom_right_y)
-
-        self.drag_position = None
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.run_code_check)
-        self.timer.start(500)
-
-        self.max_move_steps = 10
-        self.current_move_step = 0
-        self.increase_offset = False
-
-        self.last_state = "none"
 
     def run_code_check(self):
         self.worker = CodeQualityChecker()
@@ -88,53 +102,50 @@ class Character(QWidget):
 
     def update_gif(self, warnings_count, errors_count):
         if errors_count > 0:
-            if self.last_state == "error":
-                return
-
-            self.last_state = "error"
-            self.movie.setSpeed(self.default_speed)
-            self.movie.stop()
-            self.movie.setFileName(GIF_PANIC)
-            self.movie.start()
-        elif warnings_count > 100:
-            if self.last_state == "warning":
-                new_speed = self.default_speed + warnings_count
-                self.movie.setSpeed(new_speed)
-                return
-
-            self.last_state = "warning"
+            new_state = CharacterStates.PANIC
+        elif warnings_count > 10:
+            new_state = CharacterStates.WARNING
             new_speed = self.default_speed + warnings_count
             self.movie.setSpeed(new_speed)
-            self.movie.stop()
-            self.movie.setFileName(GIF_SAD)
-            self.movie.start()
+
+            new_pacing_time = int(self.default_pacing_time - warnings_count)
+            new_pacing_time = max(20, new_pacing_time)
+            new_pacing_time = min(100, new_pacing_time)
+            self.pacing_timer.start(new_pacing_time)
+
         else:
-            if self.last_state == "none":
-                current_pos = self.pos()
+            self.pacing_timer.start(self.default_pacing_time)
+            self.current_move_offset = 5
+            new_state = CharacterStates.HAPPY
 
-                print(self.current_move_step)
+        if self.current_state != new_state:
+            self.current_state = new_state
+            self.update_state()
 
-                if self.current_move_step >= self.max_move_steps:
-                    self.increase_offset = False
-                elif self.current_move_step <= 0:
-                    self.increase_offset = True
+    def update_state(self):
+        self.movie.setSpeed(self.default_speed)
+        self.movie.stop()
+        self.movie.setFileName(self.current_state.value)
+        self.movie.start()
 
-                if self.increase_offset:
-                    self.current_move_step += 1
-                    self.current_move_offset = -5
-                else:
-                    self.current_move_step -= 1
-                    self.current_move_offset = 5
+    def character_pacing(self):
+        if self.current_state != CharacterStates.PANIC.name:
+            current_pos = self.pos()
 
-                new_x = current_pos.x() + self.current_move_offset
-                self.move(new_x, current_pos.y())
-                return
-            self.last_state = "none"
+            if self.current_move_step >= self.max_move_steps:
+                self.increase_offset = False
+                self.move_offset *= -1
+            elif self.current_move_step <= 0:
+                self.increase_offset = True
+                self.move_offset *= -1
 
-            self.movie.setSpeed(self.default_speed)
-            self.movie.stop()
-            self.movie.setFileName(GIF_HAPPY)
-            self.movie.start()
+            if self.increase_offset:
+                self.current_move_step += 1
+            else:
+                self.current_move_step -= 1
+
+            new_x = current_pos.x() + self.move_offset
+            self.move(new_x, current_pos.y())
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
