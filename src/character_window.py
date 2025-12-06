@@ -1,0 +1,98 @@
+import sys
+from PyQt6.QtWidgets import QApplication, QLabel, QWidget
+from PyQt6.QtGui import QMovie
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+import subprocess
+
+GIF_HAPPY = "/home/ufuk/Downloads/pika_happy.gif"
+GIF_SAD = "/home/ufuk/Downloads/pika_sad.gif"
+PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
+WINDOW_WIDTH = 300
+WINDOW_HEIGHT = 300
+
+
+class CodeQualityChecker(QThread):
+    result_ready = pyqtSignal(int)
+
+    def run(self):
+        try:
+            cmd = ["cargo", "check"]
+            result = subprocess.run(
+                cmd, cwd=PROJECT_PATH, capture_output=True, text=True
+            )
+            output = result.stderr + result.stdout
+            lines = output.strip().split("\n")
+            line_count = max(len(lines) - 1, 0)
+            self.result_ready.emit(line_count)
+        except Exception as e:
+            print("Error running cargo check:", e)
+            self.result_ready.emit(0)
+
+
+class Character(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.BypassWindowManagerHint
+        )
+
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        self.label = QLabel(self)
+        self.label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+        self.movie = QMovie(GIF_HAPPY)
+        self.label.setMovie(self.movie)
+        self.movie.start()
+
+        self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.movie.setScaledSize(self.size())
+        self.label.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
+
+        self.drag_position = None
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.run_code_check)
+        self.timer.start(1000)
+
+    def run_code_check(self):
+        self.worker = CodeQualityChecker()
+        self.worker.result_ready.connect(self.update_gif)
+        self.worker.start()
+
+    def update_gif(self, line_count):
+        if line_count > 200:
+            self.movie.stop()
+            self.movie.setFileName(GIF_SAD)
+            self.movie.start()
+        else:
+            self.movie.stop()
+            self.movie.setFileName(GIF_HAPPY)
+            self.movie.start()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.drag_position = event.globalPosition().toPoint()
+
+    def mouseMoveEvent(self, event):
+        if self.drag_position:
+            delta = event.globalPosition().toPoint() - self.drag_position
+            self.move(self.pos() + delta)
+            self.drag_position = event.globalPosition().toPoint()
+
+    def mouseReleaseEvent(self, event):
+        self.drag_position = None
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    window = Character()
+    window.show()
+    window.move(100, 100)
+
+    sys.exit(app.exec())
