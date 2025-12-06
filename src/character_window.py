@@ -5,17 +5,18 @@ from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
 import re
 from enum import Enum
-
+import time
 
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
-WINDOW_WIDTH = 100
-WINDOW_HEIGHT = 100
+WINDOW_WIDTH = 200
+WINDOW_HEIGHT = 200
 
 
 class CharacterStates(Enum):
     HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+    EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.GIF"
     WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
-    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.GIF"
 
 
 class CodeQualityChecker(QThread):
@@ -48,6 +49,17 @@ class Character(QWidget):
 
         self.current_state = CharacterStates.HAPPY
 
+        self.excited_cool_down = 5  # secs
+        self.excited_time_stamp = 0
+
+        self.max_move_steps = 20
+        self.current_move_step = 0
+        self.move_offset = 5
+        self.increase_offset = False
+
+        self.default_pacing_interval = 100  # milliseconds
+        self.code_check_interval = 1000  # milliseconds
+
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -76,17 +88,11 @@ class Character(QWidget):
 
         self.code_check_timer = QTimer(self)
         self.code_check_timer.timeout.connect(self.run_code_check)
-        self.code_check_timer.start(1000)
+        self.code_check_timer.start(self.code_check_interval)
 
         self.pacing_timer = QTimer(self)
         self.pacing_timer.timeout.connect(self.character_pacing)
-        self.default_pacing_time = 100
-        self.pacing_timer.start(self.default_pacing_time)
-
-        self.max_move_steps = 20
-        self.current_move_step = 0
-        self.move_offset = 5
-        self.increase_offset = False
+        self.pacing_timer.start(self.default_pacing_interval)
 
     def move_to_start_pos(self):
         screen = app.primaryScreen()
@@ -103,24 +109,31 @@ class Character(QWidget):
     def update_gif(self, warnings_count, errors_count):
         if errors_count > 0:
             new_state = CharacterStates.PANIC
+            self.pacing_timer.stop()
+
         elif warnings_count > 10:
             new_state = CharacterStates.WARNING
             new_speed = self.default_speed + warnings_count
             self.movie.setSpeed(new_speed)
 
-            new_pacing_time = int(self.default_pacing_time - warnings_count)
+            new_pacing_time = int(self.default_pacing_interval - warnings_count)
             new_pacing_time = max(20, new_pacing_time)
             new_pacing_time = min(100, new_pacing_time)
-            self.pacing_timer.start(new_pacing_time)
+            self.update_pacing_timer(new_pacing_time)
 
         else:
-            self.pacing_timer.start(self.default_pacing_time)
+            self.update_pacing_timer(self.default_pacing_interval)
             self.current_move_offset = 5
             new_state = CharacterStates.HAPPY
 
         if self.current_state != new_state:
-            self.current_state = new_state
+            if time.time() - self.excited_time_stamp > self.excited_cool_down:
+                self.current_state = new_state
             self.update_state()
+
+    def update_pacing_timer(self, interval):
+        if self.current_state != CharacterStates.EXCITED:
+            self.pacing_timer.start(interval)
 
     def update_state(self):
         self.movie.setSpeed(self.default_speed)
@@ -129,7 +142,7 @@ class Character(QWidget):
         self.movie.start()
 
     def character_pacing(self):
-        if self.current_state != CharacterStates.PANIC.name:
+        if self.current_state != CharacterStates.PANIC:
             current_pos = self.pos()
 
             if self.current_move_step >= self.max_move_steps:
@@ -147,9 +160,15 @@ class Character(QWidget):
             new_x = current_pos.x() + self.move_offset
             self.move(new_x, current_pos.y())
 
+    def excite_character(self):
+        self.excited_time_stamp = time.time()
+        self.current_state = CharacterStates.EXCITED
+        self.pacing_timer.stop()
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.drag_position = event.globalPosition().toPoint()
+            self.excite_character()
 
     def mouseMoveEvent(self, event):
         if self.drag_position:
