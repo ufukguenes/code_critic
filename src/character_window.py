@@ -16,10 +16,10 @@ WINDOW_HEIGHT = 200
 
 class CharacterStates(Enum):
     HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
-    EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.GIF"
+    EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.gif"
     WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
     PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.gif"
-    SLEEP = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_sleep.GIF"
+    SLEEP = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_sleep.gif"
 
 
 class CodeQualityChecker(QThread):
@@ -161,13 +161,24 @@ class Character(QWidget):
             self.pacing_timer.start(interval)
 
     def update_state(self, new_state):
+        prev_state = self.current_state
+
         if self.current_state != new_state:
-            if time.time() - self.excited_time_stamp > self.excited_cool_down:
+            if (
+                time.time() - self.excited_time_stamp > self.excited_cool_down
+                or new_state == CharacterStates.EXCITED
+            ):
                 self.current_state = new_state
-            self.movie.setSpeed(self.default_speed)
-            self.movie.stop()
-            self.movie.setFileName(self.current_state.value)
-            self.movie.start()
+                self.movie.setSpeed(self.default_speed)
+                self.movie.stop()
+                self.movie.setFileName(self.current_state.value)
+                self.movie.start()
+
+            if prev_state != CharacterStates.EXCITED:
+                self.movie.setSpeed(self.default_speed)
+                self.movie.stop()
+                self.movie.setFileName(self.current_state.value)
+                self.movie.start()
 
     def character_pacing(self):
         if self.current_state != CharacterStates.PANIC:
@@ -190,7 +201,7 @@ class Character(QWidget):
 
     def excite_character(self):
         self.excited_time_stamp = time.time()
-        self.current_state = CharacterStates.EXCITED
+        self.update_state(CharacterStates.EXCITED)
         self.pacing_timer.stop()
 
     def mousePressEvent(self, event):
