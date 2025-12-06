@@ -1,11 +1,13 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QMenu
 from PyQt6.QtGui import QMovie
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, QTimer, QThread, pyqtSignal
 import subprocess
 import re
 from enum import Enum
 import time
+
+from sleep_worker import ModifiedTimeDiffChecker
 
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
 WINDOW_WIDTH = 200
@@ -17,16 +19,21 @@ class CharacterStates(Enum):
     EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.GIF"
     WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
     PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.gif"
+    SLEEP = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_sleep.gif"
 
 
 class CodeQualityChecker(QThread):
     result_ready = pyqtSignal((int, int))
 
+    def __init__(self, project_path, parent=None):
+        super().__init__(parent)
+        self.project_path = project_path
+
     def run(self):
         try:
             cmd = ["cargo", "check"]
             result = subprocess.run(
-                cmd, cwd=PROJECT_PATH, capture_output=True, text=True
+                cmd, cwd=self.project_path, capture_output=True, text=True
             )
             output = result.stderr + result.stdout
             warnings_count = self.count_occurrences(output, "warning:")
@@ -59,6 +66,7 @@ class Character(QWidget):
 
         self.default_pacing_interval = 100  # milliseconds
         self.code_check_interval = 1000  # milliseconds
+        self.sleep_interval = 1000  # * 60 # milliseconds
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -94,6 +102,10 @@ class Character(QWidget):
         self.pacing_timer.timeout.connect(self.character_pacing)
         self.pacing_timer.start(self.default_pacing_interval)
 
+        self.sleep_timer = QTimer(self)
+        self.sleep_timer.timeout.connect(self.sleep_check)
+        self.sleep_timer.start(self.sleep_interval)
+
     def move_to_start_pos(self):
         screen = app.primaryScreen()
         rect = screen.availableGeometry()  # type: ignore
@@ -102,11 +114,27 @@ class Character(QWidget):
         self.move(bottom_right_x, bottom_right_y)
 
     def run_code_check(self):
-        self.worker = CodeQualityChecker()
-        self.worker.result_ready.connect(self.update_gif)
-        self.worker.start()
+        self.code_check_worker = CodeQualityChecker(PROJECT_PATH)
+        self.code_check_worker.result_ready.connect(self.update_code_quality)
+        self.code_check_worker.start()
 
-    def update_gif(self, warnings_count, errors_count):
+    def sleep_check(self):
+        self.sleep_check_worker = ModifiedTimeDiffChecker(PROJECT_PATH)
+        self.sleep_check_worker.result_ready.connect(self.update_sleep)
+        self.sleep_check_worker.start()
+
+    def update_sleep(self, is_older_than_timeout):
+        if is_older_than_timeout:
+            self.update_state(CharacterStates.SLEEP)
+            self.pacing_timer.stop()
+        elif self.current_state == CharacterStates.SLEEP:
+            self.update_state(CharacterStates.HAPPY)
+            self.pacing_timer.start(self.default_pacing_interval)
+
+    def update_code_quality(self, warnings_count, errors_count):
+        if self.current_state == CharacterStates.SLEEP:
+            return
+
         if errors_count > 0:
             new_state = CharacterStates.PANIC
             self.pacing_timer.stop()
@@ -126,20 +154,20 @@ class Character(QWidget):
             self.current_move_offset = 5
             new_state = CharacterStates.HAPPY
 
-        if self.current_state != new_state:
-            if time.time() - self.excited_time_stamp > self.excited_cool_down:
-                self.current_state = new_state
-            self.update_state()
+        self.update_state(new_state)
 
     def update_pacing_timer(self, interval):
         if self.current_state != CharacterStates.EXCITED:
             self.pacing_timer.start(interval)
 
-    def update_state(self):
-        self.movie.setSpeed(self.default_speed)
-        self.movie.stop()
-        self.movie.setFileName(self.current_state.value)
-        self.movie.start()
+    def update_state(self, new_state):
+        if self.current_state != new_state:
+            if time.time() - self.excited_time_stamp > self.excited_cool_down:
+                self.current_state = new_state
+            self.movie.setSpeed(self.default_speed)
+            self.movie.stop()
+            self.movie.setFileName(self.current_state.value)
+            self.movie.start()
 
     def character_pacing(self):
         if self.current_state != CharacterStates.PANIC:
