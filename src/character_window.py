@@ -5,9 +5,9 @@ from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 import subprocess
 import re
 
-GIF_HAPPY = "/home/ufuk/Downloads/pika_happy.gif"
-GIF_SAD = "/home/ufuk/Downloads/pika_sad.gif"
-GIF_PANIC = "/home/ufuk/Downloads/pika_sad.gif"
+GIF_HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+GIF_SAD = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
+GIF_PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
 WINDOW_WIDTH = 100
 WINDOW_HEIGHT = 100
@@ -73,7 +73,11 @@ class Character(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.run_code_check)
-        self.timer.start(1000)
+        self.timer.start(500)
+
+        self.max_move_steps = 10
+        self.current_move_step = 0
+        self.increase_offset = False
 
         self.last_state = "none"
 
@@ -86,17 +90,19 @@ class Character(QWidget):
         if errors_count > 0:
             if self.last_state == "error":
                 return
-            self.last_state = "error"
 
+            self.last_state = "error"
             self.movie.setSpeed(self.default_speed)
             self.movie.stop()
             self.movie.setFileName(GIF_PANIC)
             self.movie.start()
-        elif warnings_count > 10:
+        elif warnings_count > 100:
             if self.last_state == "warning":
+                new_speed = self.default_speed + warnings_count
+                self.movie.setSpeed(new_speed)
                 return
-            self.last_state = "warning"
 
+            self.last_state = "warning"
             new_speed = self.default_speed + warnings_count
             self.movie.setSpeed(new_speed)
             self.movie.stop()
@@ -104,6 +110,24 @@ class Character(QWidget):
             self.movie.start()
         else:
             if self.last_state == "none":
+                current_pos = self.pos()
+
+                print(self.current_move_step)
+
+                if self.current_move_step >= self.max_move_steps:
+                    self.increase_offset = False
+                elif self.current_move_step <= 0:
+                    self.increase_offset = True
+
+                if self.increase_offset:
+                    self.current_move_step += 1
+                    self.current_move_offset = -5
+                else:
+                    self.current_move_step -= 1
+                    self.current_move_offset = 5
+
+                new_x = current_pos.x() + self.current_move_offset
+                self.move(new_x, current_pos.y())
                 return
             self.last_state = "none"
 
