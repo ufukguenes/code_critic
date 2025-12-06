@@ -9,8 +9,8 @@ GIF_HAPPY = "/home/ufuk/Downloads/pika_happy.gif"
 GIF_SAD = "/home/ufuk/Downloads/pika_sad.gif"
 GIF_PANIC = "/home/ufuk/Downloads/pika_sad.gif"
 PROJECT_PATH = "/home/ufuk/Documents/Programming/kuh-handel"
-WINDOW_WIDTH = 300
-WINDOW_HEIGHT = 300
+WINDOW_WIDTH = 100
+WINDOW_HEIGHT = 100
 
 
 class CodeQualityChecker(QThread):
@@ -60,6 +60,12 @@ class Character(QWidget):
         self.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.movie.setScaledSize(self.size())
         self.label.resize(WINDOW_WIDTH, WINDOW_HEIGHT)
+
+        screen = app.primaryScreen()
+        rect = screen.availableGeometry()  # type: ignore
+        bottom_right_x = rect.right() - self.width()
+        bottom_right_y = rect.bottom() - self.height() - 30
+        self.move(bottom_right_x, bottom_right_y)
 
         self.drag_position = None
 
@@ -114,6 +120,5 @@ if __name__ == "__main__":
 
     window = Character()
     window.show()
-    window.move(100, 100)
 
     sys.exit(app.exec())
