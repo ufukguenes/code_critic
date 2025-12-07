@@ -72,6 +72,8 @@ class Character(QWidget):
         self.code_check_interval = 1000  # milliseconds
         self.sleep_check_interval = 1000  # milliseconds
 
+        self.code_check_worker = None
+
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
@@ -118,6 +120,8 @@ class Character(QWidget):
         self.move(bottom_right_x, bottom_right_y)
 
     def run_code_check(self):
+        if self.code_check_worker is not None and self.code_check_worker.isRunning():
+            return
         self.code_check_worker = CodeQualityChecker(PROJECT_PATH)
         self.code_check_worker.result_ready.connect(self.update_code_quality)
         self.code_check_worker.start()
