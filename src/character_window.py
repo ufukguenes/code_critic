@@ -15,11 +15,11 @@ WINDOW_HEIGHT = 200
 
 
 class CharacterStates(Enum):
-    HAPPY = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_walk.GIF"
-    EXCITED = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_excited.gif"
-    WARNING = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_warning.gif"
-    PANIC = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_panic.gif"
-    SLEEP = "/home/ufuk/Nextcloud/Photos/rust_gifs/crab_sleep.gif"
+    HAPPY = "./assets/crab_walk.GIF"
+    EXCITED = "./assets/crab_excited.gif"
+    WARNING = "./assets/crab_warning.gif"
+    PANIC = "./assets/crab_panic.gif"
+    SLEEP = "./assets/crab_sleep.gif"
 
 
 class CodeQualityChecker(QThread):
